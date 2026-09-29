@@ -1,0 +1,174 @@
+<mujoco model="cartpole">
+    <!--
+      Clean 2D-style CartPole for MuJoCo
+
+      DOF:
+        q = [cart_x, pole_theta]
+
+      Rendering layers (camera looks from -Y toward +Y):
+        pole : y = -0.12   (front)
+        cart : y =  0.00   (middle)
+        rail : y = +0.10   (back)
+
+      This keeps the model dynamically planar while preventing rail/pole
+      z-fighting and contact interference in the viewer.
+    -->
+
+    <compiler angle="radian"/>
+
+    <option
+        timestep="0.002"
+        gravity="0 0 -9.81"
+        integrator="Euler"/>
+
+    <!-- Common visual/contact defaults -->
+    <default>
+        <geom
+            contype="0"
+            conaffinity="0"
+            friction="0 0 0"/>
+    </default>
+
+    <visual>
+        <global
+            azimuth="90"
+            elevation="0"
+            fovy="22"/>
+        <quality shadowsize="2048"/>
+    </visual>
+
+    <statistic
+        center="0 0 0.35"
+        extent="3.0"/>
+
+    <worldbody>
+
+        <!-- ============================================================
+             RAIL
+             Purely visual. It never collides with the cart or pole.
+             It is placed behind the moving mechanism in Y.
+             ============================================================ -->
+        <geom
+            name="rail"
+            type="box"
+            pos="0 0.10 0.12"
+            size="2.70 0.025 0.025"
+            rgba="0.24 0.26 0.30 1"/>
+
+        <!-- End markers: visual only -->
+        <geom
+            name="rail_stop_left"
+            type="box"
+            pos="-2.64 0.10 0.19"
+            size="0.025 0.025 0.09"
+            rgba="0.24 0.26 0.30 1"/>
+
+        <geom
+            name="rail_stop_right"
+            type="box"
+            pos="2.64 0.10 0.19"
+            size="0.025 0.025 0.09"
+            rgba="0.24 0.26 0.30 1"/>
+
+        <!-- ============================================================
+             CART
+             No wheels. The slide joint alone constrains the cart to X.
+             Cart bottom is above the rail so there is a clear visual gap.
+             ============================================================ -->
+        <body name="cart" pos="0 0 0.25">
+
+            <joint
+                name="cart_slide"
+                type="slide"
+                axis="1 0 0"
+                limited="true"
+                range="-2.40 2.40"
+                damping="0.10"/>
+
+            <geom
+                name="cart_geom"
+                type="box"
+                pos="0 0 0"
+                size="0.18 0.075 0.06"
+                mass="1.0"
+                rgba="0.20 0.45 0.82 1"/>
+
+            <!-- ========================================================
+                 POLE
+                 Pivot is slightly above the cart.
+                 The whole pole is moved slightly toward the camera
+                 (negative Y), so when it passes the rail in projection,
+                 it is rendered cleanly in front instead of z-fighting.
+                 ======================================================== -->
+            <body name="pole" pos="0 -0.12 0.10">
+
+                <joint
+                    name="pole_hinge"
+                    type="hinge"
+                    axis="0 1 0"
+                    limited="false"
+                    damping="0.010"
+                    frictionloss="0.003"/>
+
+                <geom
+                    name="pole_geom"
+                    type="capsule"
+                    fromto="0 0 0  0 0 0.60"
+                    size="0.022"
+                    mass="0.10"
+                    rgba="0.88 0.28 0.16 1"/>
+            </body>
+
+        </body>
+
+        <!-- ============================================================
+             FIXED SIDE CAMERA
+             X is screen-horizontal and Z is screen-vertical.
+             Large distance + small FOV gives a nearly orthographic 2D look.
+             ============================================================ -->
+        <camera
+            name="side"
+            mode="fixed"
+            pos="0 -9 0.55"
+            xyaxes="1 0 0  0 0 1"
+            fovy="22"/>
+
+    </worldbody>
+
+    <!-- ================================================================
+         ACTUATOR
+         Force command applied directly along the cart slide joint.
+         ================================================================ -->
+    <actuator>
+        <motor
+            name="cart_force"
+            joint="cart_slide"
+            gear="1"
+            ctrllimited="true"
+            ctrlrange="-10 10"/>
+    </actuator>
+
+    <!--
+      qpos order:
+        [cart_slide, pole_hinge]
+
+      "down"    : theta = pi
+      "upright" : theta = 0
+    -->
+    <keyframe>
+
+        <key
+            name="balance"
+            qpos="0 0.0872664626"
+            qvel="0 0"
+            ctrl="0"/>
+
+        <key
+            name="upright"
+            qpos="0 0"
+            qvel="0 0"
+            ctrl="0"/>
+
+    </keyframe>
+
+</mujoco>
