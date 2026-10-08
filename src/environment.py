@@ -36,7 +36,7 @@ class CartPoleEnv:
     force는 제어기가 만든 힘이고 disturbance는 카트에 가하는 외력입니다.
     """
 
-    def __init__(self, config: EnvConfig | None = None) -> None:
+    def __init__(self, config: EnvConfig | None = None, *, seed: int | None = None) -> None:
         self.config = config or EnvConfig()
         path = Path(__file__).with_name("cartpole.xml")
         self.model = mujoco.MjModel.from_xml_path(str(path))
@@ -62,7 +62,7 @@ class CartPoleEnv:
         self.max_steps = max(1, math.ceil(self.config.duration_seconds / self.control_period - 1e-10))
         self.step_count = 0
         self.state = State()
-        self._rng = np.random.default_rng()
+        self._rng = np.random.default_rng(seed)
         self._needs_reset = True
         self._viewer = None
 
@@ -78,10 +78,13 @@ class CartPoleEnv:
             x_dot=float(x_dot),
             theta=float(theta),
             theta_dot=float(theta_dot),
+            previous_force=float(self.data.ctrl[self._actuator_id]),
         )
 
-    def reset(self, *, state: State | None = None) -> State:
+    def reset(self, *, state: State | None = None, seed: int | None = None) -> State:
         """수직 근처의 초기 상태에서 다시 시작합니다. 시간은 0으로 돌아갑니다."""
+        if seed is not None:
+            self._rng = np.random.default_rng(seed)
         if state is None:
             ranges = np.array([
                 self.config.initial_position_range,

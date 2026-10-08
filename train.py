@@ -1,56 +1,46 @@
-"""DQN 학습 루프: 행동 선택 -> 경험 저장 -> 신경망 업데이트."""
+"""settings.py의 설정으로 학습하고 results/에 실행별 결과를 저장합니다."""
 
-import math
+import argparse
+import multiprocessing as mp
+import os
 
-from src.config import EnvConfig
-from src.controllers.dqn import DEFAULT_CHECKPOINT, DQNAgent
-from src.dqn_episode import run_dqn_episode
-from src.environment import CartPoleEnv
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
-
-# 학습을 시작하기 전에 이 값을 바꾸면 됩니다.
-EPISODES = 300
-OUTPUT_PATH = DEFAULT_CHECKPOINT
+import settings
+from src.run_results import create_run
 
 
-def train(episodes=300, output=DEFAULT_CHECKPOINT):
-    if episodes < 1:
-        raise ValueError("episodes는 1 이상이어야 합니다.")
-
-    config = EnvConfig()
-    # 학습률, gamma, 배치 크기 등을 바꾸려면 아래 생성자에 지정하세요.
-    agent = DQNAgent(max_force=config.max_force)
-
-    with CartPoleEnv(config) as env:
-        for episode_index in range(episodes):
-            # epsilon 확률로 무작위 행동을 고릅니다. 학습하면서 탐험을 줄입니다.
-            epsilon = 0.05 + 0.95 * math.exp(-episode_index / 90.0)
-            stats = run_dqn_episode(env, agent, epsilon)
-
-            episode_number = episode_index + 1
-            if episode_number == 1 or episode_number % 10 == 0:
-                print(
-                    f"episode={episode_number}  return={stats.total_reward:.2f}  "
-                    f"steps={stats.steps}  epsilon={epsilon:.3f}  "
-                    f"loss={stats.mean_loss:.4f}"
-                )
-
-    # 추론에 필요한 가중치만 저장합니다. 학습을 재개하는 체크포인트는 아닙니다.
-    saved = agent.save(output)
-    print(f"Model saved: {saved.resolve()}")
-    return agent
-
-
-def main():
-    try:
-        train(EPISODES, OUTPUT_PATH)
-    except KeyboardInterrupt:
-        print("학습을 중단했습니다.")
-    except ValueError as error:
-        raise SystemExit(f"오류: {error}") from error
-    except NotImplementedError as error:
-        raise SystemExit(f"DQN 스켈레톤이 아직 미완성입니다: {error}") from error
+def main(argv=None):
+    argparse.ArgumentParser(description=__doc__).parse_args(argv)
+    algorithm = settings.ALGORITHM.lower()
+    if algorithm not in ("dqn", "sac", "ppo"):
+        raise ValueError("settings.ALGORITHM은 dqn, sac, ppo 중 하나여야 합니다.")
+    files = create_run(algorithm)
+    common = dict(
+        num_envs=settings.NUM_ENVS, seed=settings.SEED,
+        duration=settings.DURATION_SECONDS, goal=settings.REWARD_PROFILE,
+        smoothing_alpha=settings.SMOOTHING_ALPHA,
+        max_force_change=settings.MAX_FORCE_CHANGE,
+        eval_episodes=settings.EVAL_EPISODES,
+        gif_interval=settings.GIF_INTERVAL, gif_fps=settings.GIF_FPS,
+        gif_duration=settings.GIF_DURATION_SECONDS,
+        report_interval=settings.REPORT_INTERVAL_SECONDS,
+        show_report=settings.OPEN_REPORT, watch=settings.WATCH,
+        watch_interval=settings.WATCH_INTERVAL_SECONDS,
+    )
+    if algorithm == "dqn":
+        from src.training.dqn import train
+        train(files, episodes=settings.EPISODES, **settings.DQN, **common)
+    else:
+        from src.training.continuous import train
+        train(files, algorithm=algorithm, total_steps=settings.TOTAL_STEPS,
+              **settings.CONTINUOUS, **common)
 
 
 if __name__ == "__main__":
-    main()
+    mp.freeze_support()
+    try:
+        main()
+    except (ValueError, RuntimeError, OSError) as error:
+        raise SystemExit(f"오류: {error}") from error

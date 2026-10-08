@@ -18,6 +18,7 @@ class State:
     x_dot: float = 0.0
     theta: float = 0.0
     theta_dot: float = 0.0
+    previous_force: float = 0.0  # 이 상태에 도달할 때 실제 적용한 힘(N); reset 시 0
 
     def as_array(self) -> np.ndarray:
         """강화학습 입력용 배열: [x, x_dot, theta, theta_dot]."""

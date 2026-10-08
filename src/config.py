@@ -1,4 +1,4 @@
-"""실험 설정. 아래 기본값을 바꾸면 main.py와 train.py에 같이 적용됩니다."""
+"""물리 환경 설정. 새 학습에 적용하며, 모델 실행은 저장된 설정을 복원합니다."""
 
 from dataclasses import dataclass, fields
 import math
@@ -17,10 +17,15 @@ class EnvConfig:
     initial_velocity_range: float = 0.15
     initial_angle_degrees: float = 8.0
     initial_angular_velocity_range: float = 0.20
+    reward_profile: str = "balance"  # balance / still / regulate(이차 상태 비용)
 
     def __post_init__(self) -> None:
         # 객체를 만들 때 잘못된 설정을 확인합니다. 실습은 위의 값부터 바꾸세요.
         for field in fields(self):
+            if field.name == "reward_profile":
+                if self.reward_profile not in ("balance", "still", "regulate"):
+                    raise ValueError("reward_profile must be balance, still or regulate")
+                continue
             value = getattr(self, field.name)
             if not math.isfinite(value):
                 raise ValueError(f"{field.name} must be finite")
