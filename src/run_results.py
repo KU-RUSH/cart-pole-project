@@ -347,7 +347,7 @@ def write_report(files: RunFiles, status: str | None = None) -> Path:
     graph_error = "".join(f'<p class="error">그래프 저장 오류 ({escape(name)}): {escape(message)}</p>'
                           for name, message in state.get("graph_errors", {}).items())
     images = "".join(f'<section><h2>{title}</h2><img src="plots/{name}.png?v={(files.plots / (name + ".png")).stat().st_mtime_ns}" alt="{title}"></section>'
-                     for name, title in [("rewards", "보상 추이"), ("performance", "평가 성능"), ("motion", "GIF와 같은 실행의 움직임")]
+                     for name, title in [("rewards", "보상 추이"), ("performance", "평가 성능"), ("motion", "Motion Data")]
                      if (files.plots / f"{name}.png").is_file())
     links = " · ".join(f'<a href="{p.relative_to(files.root).as_posix()}">{label}</a>' for p, label in
                         [(files.best_model, "최고 모델"), (files.last_model, "마지막 모델"),
